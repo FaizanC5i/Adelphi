@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Digital Bulletin</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/4.5.2/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
+  <!-- 🔵 STYLES UNCHANGED -->
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background: #212529;
+      font-family: system-ui, sans-serif;
+    }
+
+    #layout {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header { background: #212529; }
+
+    .header-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 24px;
+    }
+
+    .social-links {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .social-links span {
+      color: #adb5bd;
+      font-size: 14px;
+    }
+
+    .social-links a {
+      color: #fff;
+      font-size: 18px;
+    }
+
+    .download-btn {
+      color: #fff;
+      font-size: 18px;
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #reader {
+      transform-origin: center center;
+      transition: transform 0.3s ease;
+    }
+
+    .flipbook { box-shadow: none; }
+
+    .turn-shadow,
+    .turn-gradient,
+    .turn-page-shadow {
+      display: none !important;
+    }
+
+    .turn-page,
+    .turn-page-wrapper {
+      background: #212529 !important;
+      box-shadow: none !important;
+    }
+
+    .page { background: #fff; }
+
+    .nav-btn {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      z-index: 1000;
+    }
+
+    .nav-btn i {
+      font-size: 48px;
+      opacity: 0.85;
+    }
+
+    #prevBtn { left: 16px; }
+    #nextBtn { right: 16px; }
+
+    #loadingScreen {
+      position: fixed;
+      inset: 0;
+      background: #212529;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+
+    .loader {
+      width: 50px;
+      height: 50px;
+      border: 5px solid rgba(255,255,255,.3);
+      border-top: 5px solid #20c997;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+
+<body>
+
+<div id="loadingScreen"><div class="loader"></div></div>
+
+<div id="layout">
+
+<header>
+  <div class="header-container">
+    <div class="social-links">
+      <span>Follow us on:</span>
+      <a href="https://www.facebook.com/C5iai/" target="_blank"><i class="fab fa-facebook-f"></i></a>
+      <a href="https://www.linkedin.com/company/c5i-ai" target="_blank"><i class="fab fa-linkedin-in"></i></a>
+      <a href="https://twitter.com/C5iai" target="_blank"><i class="fab fa-twitter"></i></a>
+      <a href="https://www.youtube.com/@c5i-ai" target="_blank"><i class="fab fa-youtube"></i></a>
+    </div>
+
+    <a id="link-to-PDF" class="download-btn" download
+       href="Adelphi Capabilities-Final.pdf">
+      <i class="fas fa-download"></i>
+    </a>
+  </div>
+</header>
+
+<main>
+  <button id="prevBtn" class="nav-btn"><i class="fas fa-angle-left"></i></button>
+
+  <div id="reader">
+    <div id="flipbook" class="flipbook"></div>
+  </div>
+
+  <button id="nextBtn" class="nav-btn"><i class="fas fa-angle-right"></i></button>
+</main>
+
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script src="turn.min.js"></script>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+const pdfUrl = document.getElementById("link-to-PDF").href;
+const flipbook = document.getElementById("flipbook");
+const reader = document.getElementById("reader");
+
+let pageWidth = 0, pageHeight = 0;
+
+pdfjsLib.getDocument(pdfUrl).promise.then(async pdf => {
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+
+    const pageDiv = document.createElement('div');
+    pageDiv.className = 'page hard';
+
+    const canvas = document.createElement('canvas');
+    pageDiv.appendChild(canvas);
+    flipbook.appendChild(pageDiv);
+
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale: 1 });
+
+    // 🔥 ONLY ADDITION (CRYSTAL CLEAR FIX)
+    const dpr = window.devicePixelRatio || 1;
+
+    canvas.width  = viewport.width * dpr;
+    canvas.height = viewport.height * dpr;
+    canvas.style.width  = viewport.width + "px";
+    canvas.style.height = viewport.height + "px";
+
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    await page.render({ canvasContext: ctx, viewport }).promise;
+
+    if (i === 1) {
+      pageWidth = viewport.width;
+      pageHeight = viewport.height;
+    }
+  }
+
+  $(flipbook).turn({
+    width: pageWidth * 2,
+    height: pageHeight,
+    autoCenter: true,
+    duration: 1500
+  });
+
+  reader.style.transform = `scale(${fitToScreen()})`;
+  loadingScreen.style.display = "none";
+});
+
+function fitToScreen() {
+  const main = document.querySelector('main');
+  return Math.min(
+    (main.clientWidth - 40) / (pageWidth * 2),
+    (main.clientHeight - 40) / pageHeight
+  );
+}
+
+window.addEventListener('resize', () => {
+  reader.style.transform = `scale(${fitToScreen()})`;
+});
+
+prevBtn.onclick = () => $(flipbook).turn('previous');
+nextBtn.onclick = () => $(flipbook).turn('next');
+</script>
+
+</body>
+</html>
